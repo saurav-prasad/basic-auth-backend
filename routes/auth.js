@@ -37,7 +37,7 @@ router.post('/createuser',
             }
 
             // checking the email
-            const userEmail = await userSchema.findOne({ email })
+            const userEmail = await userSchema.findOne({ email: email })
 
             // if exist
             if (userEmail) {
@@ -78,53 +78,50 @@ router.post('/createuser',
         }
     })
 
-// Login a user -> POST /auth/loginuser
+// Login a user -> POST /auth/loguser
 router.post('/loguser',
     [
         body('email', 'Please enter a valid email').isEmail(),
-        body('password', 'Password should be atleast of 6 characters long').isLength({ min: 6 })
+        body('password', 'Password must be at least 6 characters long').isLength({ min: 6 })
     ],
     async (req, res) => {
-        let success;
-        // request body validation
-        const errors = validationResult(req)
+        let success = false;
+
+        // Validate request body
+        const errors = validationResult(req);
         if (!errors.isEmpty()) {
-            success = false
-            console.log(req.body);
-            console.log(errors);
-            return res.status(400).send({ message: errors.array()[0].msg, success })
+            return res.status(400).send({
+                success,
+                message: errors.array()[0].msg
+            });
         }
 
         try {
-            const { email, password } = req.body
+            const { email, password } = req.body;
 
-            // checking the email
-            const user = await userSchema.findOne({ email })
-            console.log(user)
-
-            // if doesnot exist
+            // Check if the user exists
+            const user = await userSchema.findOne({ email });
             if (!user) {
-                success = false
-                return res.status(400).send({ success, message: "Email doesnot exist" })
-            };
+                return res.status(400).send({ success, message: "Email does not exist" });
+            }
 
-            // decrypt the password & checking the password
-            const decryptedPassword = await bcryptjs.compare(password, user.password)
+            // Verify password
+            const isPasswordMatch = await bcryptjs.compare(password, user.password);
+            if (!isPasswordMatch) {
+                return res.status(400).send({ success, message: "Incorrect password!" });
+            }
 
-            // if doesnot exist
-            if (!decryptedPassword) {
-                success = false
-                return res.status(400).send({ success, message: "Incorrect password!" })
-            };
+            // Generate JWT token
+            const token = jwt.sign(
+                { userId: user._id },
+                jwtSecret
+            );
 
-            // generate token
-            const token = jwt.sign({
-                userId: user._id,
-            }, jwtSecret)
-
-            success = true
+            success = true;
             res.send({
-                success, message: "Logged-in successfully", data: {
+                success,
+                message: "Logged in successfully",
+                data: {
                     email,
                     username: user.username,
                     id: user._id,
@@ -132,12 +129,14 @@ router.post('/loguser',
                     token
                 }
             });
+
         } catch (error) {
-            success = false
-            res.status(500).send({ message: "Internal server error occured", success })
-            console.log(error);
+            console.error(error);
+            res.status(500).send({ success, message: "Internal server error occurred" });
         }
-    })
+    }
+);
+
 
 // Fetch a user using auth-token -> GET /auth/fetchuser
 router.get('/fetchuser', fetchUser,
