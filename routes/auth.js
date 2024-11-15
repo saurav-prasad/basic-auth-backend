@@ -9,6 +9,7 @@ const jwtSecret = process.env.JWT_SECRET
 const fetchUser = require('../middleware/fetchUser.js')
 
 // Create a new user -> POST /auth/createuser
+
 router.post('/createuser',
     [
         body('email', 'Please enter a valid email').isEmail(),
@@ -37,7 +38,7 @@ router.post('/createuser',
             }
 
             // checking the email
-            const userEmail = await userSchema.findOne({ email: email })
+            const userEmail = await userSchema.findOne({ email })
 
             // if exist
             if (userEmail) {
@@ -57,7 +58,7 @@ router.post('/createuser',
                 profilePhoto: `https://api.dicebear.com/7.x/pixel-art/svg?seed=${username}`,
             })
 
-            // generate token
+                      // generate token
             const token = jwt.sign({
                 userId: newUser._id,
             }, jwtSecret)
@@ -73,55 +74,58 @@ router.post('/createuser',
                 }
             });
         } catch (error) {
+            console.log(error)
             success = false
             res.status(500).send({ message: "Internal server error occured", success })
         }
     })
 
-// Login a user -> POST /auth/loguser
-router.post('/loguser',
+// Login a user -> POST /auth/loginuser
+router.post('/loginuser',
     [
         body('email', 'Please enter a valid email').isEmail(),
-        body('password', 'Password must be at least 6 characters long').isLength({ min: 6 })
+        body('password', 'Password should be atleast of 6 characters long').isLength({ min: 6 })
     ],
     async (req, res) => {
-        let success = false;
-
-        // Validate request body
-        const errors = validationResult(req);
+        let success;
+        // request body validation
+        const errors = validationResult(req)
         if (!errors.isEmpty()) {
-            return res.status(400).send({
-                success,
-                message: errors.array()[0].msg
-            });
+            success = false
+            console.log(req.body);
+            console.log(errors);
+            return res.status(400).send({ message: errors.array()[0].msg, success })
         }
 
         try {
-            const { email, password } = req.body;
+            const { email, password } = req.body
 
-            // Check if the user exists
-            const user = await userSchema.findOne({ email });
+            // checking the email
+            const user = await userSchema.findOne({ email })
+
+            // if doesnot exist
             if (!user) {
-                return res.status(400).send({ success, message: "Email does not exist" });
-            }
+                success = false
+                return res.status(400).send({ success, message: "Email doesnot exist" })
+            };
 
-            // Verify password
-            const isPasswordMatch = await bcryptjs.compare(password, user.password);
-            if (!isPasswordMatch) {
-                return res.status(400).send({ success, message: "Incorrect password!" });
-            }
+            // decrypt the password & checking the password
+            const decryptedPassword = await bcryptjs.compare(password, user.password)
 
-            // Generate JWT token
-            const token = jwt.sign(
-                { userId: user._id },
-                jwtSecret
-            );
+            // if doesnot exist
+            if (!decryptedPassword) {
+                success = false
+                return res.status(400).send({ success, message: "Incorrect password!" })
+            };
 
-            success = true;
+            // generate token
+            const token = jwt.sign({
+                userId: user._id,
+            }, jwtSecret)
+
+            success = true
             res.send({
-                success,
-                message: "Logged in successfully",
-                data: {
+                success, message: "Logged-in successfully", data: {
                     email,
                     username: user.username,
                     id: user._id,
@@ -129,19 +133,17 @@ router.post('/loguser',
                     token
                 }
             });
-
         } catch (error) {
-            console.error(error);
-            res.status(500).send({ success, message: "Internal server error occurred" });
+            success = false
+            res.status(500).send({ message: "Internal server error occured", success })
+            console.log(error);
         }
-    }
-);
+    })
 
 
 // Fetch a user using auth-token -> GET /auth/fetchuser
 router.get('/fetchuser', fetchUser,
     async (req, res) => {
-        let success
         try {
             let userId = req.userId;
 
@@ -164,9 +166,11 @@ router.get('/fetchuser', fetchUser,
                 }
             });
         } catch (error) {
+            console.log(error)
             success = false
             res.status(500).send({ message: "Internal server error occured", success })
         }
     })
+
 
 module.exports = router
