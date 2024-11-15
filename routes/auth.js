@@ -100,6 +100,7 @@ router.post('/loginuser',
 
             // checking the email
             const user = await userSchema.findOne({ email })
+            console.log(user)
 
             // if doesnot exist
             if (!user) {

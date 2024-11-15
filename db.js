@@ -8,7 +8,7 @@ const connetToMongo = () => {
             console.log("Connected to mongodb");
         }).
         catch((err)=>{
-            // console.log(err);
+            console.log(err);
             console.log("Cannot connect to the database");
         })
 }
