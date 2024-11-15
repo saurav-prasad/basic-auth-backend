@@ -79,7 +79,7 @@ router.post('/createuser',
     })
 
 // Login a user -> POST /auth/loginuser
-router.post('/loginuser',
+router.post('/loguser',
     [
         body('email', 'Please enter a valid email').isEmail(),
         body('password', 'Password should be atleast of 6 characters long').isLength({ min: 6 })
